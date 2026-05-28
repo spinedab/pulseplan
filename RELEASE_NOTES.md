@@ -82,4 +82,6 @@ No migration required. Existing user data (plans, accounts, health) will be pres
 
 **Next planned release:** v1.1 (if additional features requested)
 
+**Git:** The project has a clean initial commit ready for remote repository.
+
 For support or issues within the declared safe personal-planning scope, refer to the project documentation.

@@ -77,3 +77,27 @@ The application is considered **production-operational** for its intended person
 - `docs/USER_GUIDE.md`
 - `docs/ARCHITECTURE.md`
 - `scripts/build_release.sh` (helper de builds)
+
+## Publicar en tu Repositorio (Git)
+
+Este proyecto ya tiene un commit inicial limpio y profesional.
+
+### Pasos para subirlo a GitHub / GitLab / etc.
+
+```bash
+# 1. Crea un nuevo repositorio vacío en GitHub (sin README, .gitignore ni licencia)
+
+# 2. Conecta tu repo local
+git remote add origin https://github.com/TU_USUARIO/pulseplan.git
+
+# 3. Sube el código (incluyendo toda la documentación de producción)
+git branch -M main
+git push -u origin main
+```
+
+Recomendaciones:
+- Usa HTTPS + Personal Access Token (PAT) o SSH.
+- Después del primer push, puedes agregar topics como `flutter`, `cross-platform`, `planner`, `productivity`.
+- Protege la rama `main` una vez que tengas CI.
+
+El repositorio está listo para ser el punto de partida de un proyecto mantenido.
