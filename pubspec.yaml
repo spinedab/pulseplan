@@ -1,8 +1,8 @@
 name: playlist_planner
 description: "PulsePlan - Cross-platform professional planner for personal, authorized music listening routines."
-homepage: https://github.com/YOUR_USERNAME/pulseplan
-repository: https://github.com/YOUR_USERNAME/pulseplan
-issue_tracker: https://github.com/YOUR_USERNAME/pulseplan/issues
+homepage: https://github.com/spinedab/pulseplan
+repository: https://github.com/spinedab/pulseplan
+issue_tracker: https://github.com/spinedab/pulseplan/issues
 publish_to: 'none' # Private / internal distribution only
 
 # The following defines the version and build number for your application.
