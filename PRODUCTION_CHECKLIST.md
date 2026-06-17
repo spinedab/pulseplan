@@ -11,7 +11,7 @@
 ## 1. Code Quality & Architecture
 
 - [x] `flutter analyze` passes with zero issues (strict lints)
-- [x] All widget + unit tests pass (3/3)
+- [x] All widget + unit tests pass (5/5)
 - [x] No dead code, no unused dependencies (intl removed)
 - [x] Single source of truth for models (`plan_model.dart`)
 - [x] Defensive JSON parsing + graceful degradation on corrupted data
@@ -158,7 +158,7 @@
 - Security & Compliance: ✅
 - QA: ✅
 
-**Date of last full review:** 2026-05
+**Date of last full review:** 2026-06-17
 
 **Git Status:** ✅ Repository pushed to https://github.com/spinedab/pulseplan (3 commits, production-ready)
 

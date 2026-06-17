@@ -78,24 +78,8 @@ The application is considered **production-operational** for its intended person
 - `docs/ARCHITECTURE.md`
 - `scripts/build_release.sh` (helper de builds)
 
-## Publicar en tu Repositorio (Git)
+## Repositorio
 
-Este proyecto ya tiene un commit inicial limpio y profesional.
+**GitHub:** https://github.com/spinedab/pulseplan
 
-### Pasos para subirlo a GitHub / GitLab / etc.
-
-```bash
-# 1. Crea un nuevo repositorio vacío en GitHub (sin README, .gitignore ni licencia)
-
-# 2. Conecta tu repo local
-git remote add origin https://github.com/spinedab/pulseplan.git
-
-# 3. Sube el código (incluyendo toda la documentación de producción)
-git branch -M main
-git push -u origin main
-```
-
-**Repositorio real ya creado y actualizado:**
-→ https://github.com/spinedab/pulseplan
-
-El código completo (incluyendo toda la documentación de producción) ya fue subido exitosamente.
+El código, documentación de producción y scripts de release están publicados y sincronizados en `main`.
