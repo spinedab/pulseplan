@@ -7,46 +7,71 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:playlist_planner/app_theme.dart';
+import 'package:playlist_planner/export_service.dart';
 import 'package:playlist_planner/plan_model.dart';
 
 void main() {
   runApp(const PlaylistPlannerApp());
 }
 
-class PlaylistPlannerApp extends StatelessWidget {
+class PlaylistPlannerApp extends StatefulWidget {
   const PlaylistPlannerApp({super.key});
 
   @override
+  State<PlaylistPlannerApp> createState() => _PlaylistPlannerAppState();
+}
+
+class _PlaylistPlannerAppState extends State<PlaylistPlannerApp> {
+  static const _themeKey = 'playlist_planner_theme_v1';
+  var _themeMode = ThemeMode.light;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_themeKey);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _themeMode = stored == 'dark' ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+  Future<void> _toggleTheme() async {
+    final next = _themeMode == ThemeMode.dark
+        ? ThemeMode.light
+        : ThemeMode.dark;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeKey, next == ThemeMode.dark ? 'dark' : 'light');
+    if (!mounted) {
+      return;
+    }
+    setState(() => _themeMode = next);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    const seed = Color(0xff0f766e);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'PulsePlan',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: seed,
-          primary: seed,
-          secondary: const Color(0xffc2410c),
-          tertiary: const Color(0xffbe185d),
-          surface: const Color(0xfffbfbf8),
-        ),
-        scaffoldBackgroundColor: const Color(0xfff5f5ef),
-        cardTheme: const CardThemeData(
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(8)),
-          ),
-        ),
-      ),
-      home: const PlannerHomePage(),
+      themeMode: _themeMode,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      home: PlannerHomePage(onToggleTheme: _toggleTheme),
     );
   }
 }
 
 class PlannerHomePage extends StatefulWidget {
-  const PlannerHomePage({super.key});
+  const PlannerHomePage({super.key, required this.onToggleTheme});
+
+  final VoidCallback onToggleTheme;
 
   @override
   State<PlannerHomePage> createState() => _PlannerHomePageState();
@@ -392,6 +417,7 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
   @override
   Widget build(BuildContext context) {
     final tabs = [
+      _buildDashboardTab(context),
       _buildPlanTab(context),
       _buildAccountsTab(context),
       _buildLibraryTab(context),
@@ -404,9 +430,18 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
         title: const Text('PulsePlan'),
         actions: [
           IconButton(
-            tooltip: 'Abrir musica',
+            tooltip: 'Tema claro/oscuro',
+            icon: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+            ),
+            onPressed: widget.onToggleTheme,
+          ),
+          IconButton(
+            tooltip: 'Abrir Tidal del dia',
             icon: const Icon(Icons.open_in_new),
-            onPressed: _openMusic,
+            onPressed: () => _openMusicForDay(),
           ),
           IconButton(
             tooltip: 'Nuevo mes',
@@ -426,6 +461,10 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
         onDestinationSelected: (index) => setState(() => _selectedTab = index),
         destinations: const [
           NavigationDestination(
+            icon: Icon(Icons.dashboard),
+            label: 'Panel',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.calendar_month),
             label: 'Plan',
           ),
@@ -441,6 +480,75 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDashboardTab(BuildContext context) {
+    final summary = ExportService.buildDashboard(
+      profiles: _activeProfiles,
+      accounts: _accounts,
+      monthStart: _selectedCycleMonth == 1
+          ? PlanGenerator.nextMonthStart(_monthStart)
+          : _monthStart,
+    );
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      children: [
+        Text('Panel operativo', style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 14),
+        _MetricStrip(
+          metrics: [
+            _Metric('Perfiles', '${summary.totalProfiles}', Icons.devices),
+            _Metric('Activas', '${summary.activeAccounts}', Icons.play_circle),
+            _Metric('Listas', '${summary.readyAccounts}', Icons.hourglass_top),
+            _Metric('Descanso', '${summary.restingAccounts}', Icons.bedtime),
+            _Metric(
+              'Sin asignar',
+              '${summary.profilesWithoutAccount}',
+              Icons.link_off,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        if (summary.profilesWithoutAccount > 0)
+          Card(
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: ListTile(
+              leading: const Icon(Icons.warning_amber),
+              title: const Text('Perfiles sin cuenta asignada'),
+              subtitle: Text(
+                '${summary.profilesWithoutAccount} perfiles necesitan cuenta en la pestaña Cuentas.',
+              ),
+            ),
+          ),
+        const SizedBox(height: 12),
+        Text('Reproduciendo ahora', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        if (summary.currentSlots.isEmpty)
+          const Text('Ningun bloque activo en este momento.')
+        else
+          for (final slot in summary.currentSlots) ...[
+            _ScheduleSlotCard(slot: slot, onOpen: () => _openMusicForSegment(slot.segment)),
+            const SizedBox(height: 8),
+          ],
+        const SizedBox(height: 12),
+        Text('Proximos 3 horas', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        if (summary.upcomingSlots.isEmpty)
+          const Text('Sin bloques proximos en las siguientes 3 horas.')
+        else
+          for (final slot in summary.upcomingSlots) ...[
+            _ScheduleSlotCard(slot: slot, onOpen: () => _openMusicForSegment(slot.segment)),
+            const SizedBox(height: 8),
+          ],
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: () => setState(() => _selectedTab = 5),
+          icon: const Icon(Icons.checklist),
+          label: const Text('Ver checklist operativo'),
+        ),
+      ],
     );
   }
 
@@ -549,6 +657,7 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
           _SegmentCard(
             segment: segment,
             color: _kindColor(context, segment.kind),
+            onOpenTidal: () => _openMusicForSegment(segment),
             onEdit: _selectedCycleMonth == 0
                 ? () => _openSegmentDialog(segment: segment)
                 : null,
@@ -766,6 +875,20 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
           ),
         ),
         const SizedBox(height: 18),
+        Text('Plantillas rapidas', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final count in [10, 50, 100])
+              OutlinedButton(
+                onPressed: () => _applyTemplate(count),
+                child: Text('$count perfiles'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 18),
         Row(
           children: [
             Expanded(
@@ -789,38 +912,59 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
   }
 
   Widget _buildExportTab(BuildContext context) {
-    final snapshot = PlannerSnapshot(
+    final snapshotModel = PlannerSnapshot(
       settings: _settings,
       monthStart: _monthStart,
       profiles: _profiles,
       accounts: _accounts,
-    ).toJsonString();
+    );
+    final snapshot = snapshotModel.toJsonString();
+    final csv = ExportService.buildCsv(
+      snapshot: snapshotModel,
+      activeProfiles: _activeProfiles,
+    );
+    final ics = ExportService.buildIcs(
+      snapshot: snapshotModel,
+      activeProfiles: _activeProfiles,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        Row(
+        Text('Exportar', style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            Expanded(
-              child: Text(
-                'Exportacion JSON',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
+            FilledButton.tonalIcon(
+              onPressed: () => _copyExport(snapshot, 'JSON copiado'),
+              icon: const Icon(Icons.data_object),
+              label: const Text('Copiar JSON'),
             ),
-            IconButton.filledTonal(
-              tooltip: 'Copiar',
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: snapshot));
-                _showSnack('JSON copiado');
-              },
-              icon: const Icon(Icons.copy),
+            FilledButton.tonalIcon(
+              onPressed: () => _copyExport(csv, 'CSV copiado'),
+              icon: const Icon(Icons.table_chart),
+              label: const Text('Copiar CSV'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () => _copyExport(ics, 'Calendario ICS copiado'),
+              icon: const Icon(Icons.event),
+              label: const Text('Copiar ICS'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _importTemplate,
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Importar plantilla'),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 18),
+        Text('JSON completo', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
         DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppTheme.surfaceCardColor(context),
             border: Border.all(
               color: Theme.of(context).colorScheme.outlineVariant,
             ),
@@ -842,6 +986,13 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
   }
 
   Widget _buildHealthTab(BuildContext context) {
+    final steps = ExportService.buildOperationalChecklist(
+      profile: _profile,
+      day: _day,
+      account: _accountForProfile(_profile.id),
+      health: _health,
+    );
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
@@ -850,6 +1001,19 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 14),
+        Text('Checklist operativo', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        for (final step in steps) ...[
+          _OperationalStepCard(step: step),
+          const SizedBox(height: 8),
+        ],
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: () => _openMusicForDay(),
+          icon: const Icon(Icons.open_in_new),
+          label: Text('Abrir Tidal: ${_day.segments.first.title}'),
+        ),
+        const SizedBox(height: 18),
         for (final item in _health.entries) ...[
           SwitchListTile(
             value: item.value,
@@ -884,12 +1048,6 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 10),
-        OutlinedButton.icon(
-          onPressed: _openMusic,
-          icon: const Icon(Icons.open_in_new),
-          label: const Text('Abrir Tidal web'),
         ),
         const SizedBox(height: 18),
         Text('Registro', style: Theme.of(context).textTheme.titleMedium),
@@ -1240,12 +1398,84 @@ class _PlannerHomePageState extends State<PlannerHomePage> {
     }
   }
 
-  Future<void> _openMusic() async {
-    final url = Uri.parse('https://tidal.com/browse');
+  Future<void> _copyExport(String content, String message) async {
+    await Clipboard.setData(ClipboardData(text: content));
+    _showSnack(message);
+  }
+
+  Future<void> _importTemplate() async {
+    final controller = TextEditingController();
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Importar plantilla'),
+          content: TextField(
+            controller: controller,
+            minLines: 6,
+            maxLines: 12,
+            decoration: const InputDecoration(
+              labelText: 'JSON de plantilla o configuracion',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Importar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (accepted != true) {
+      controller.dispose();
+      return;
+    }
+
+    final settings = ExportService.parseTemplateSettings(controller.text.trim());
+    controller.dispose();
+    if (settings == null) {
+      _showSnack('Plantilla invalida');
+      return;
+    }
+
+    setState(() {
+      _settings = settings;
+      _syncControllers();
+    });
+    _showSnack('Plantilla importada; pulsa Aplicar para regenerar');
+  }
+
+  void _applyTemplate(int profileCount) {
+    setState(() {
+      _profileCountDraft = profileCount.toDouble();
+      _settings = _settings.copyWith(profileCount: profileCount);
+    });
+    _showSnack('Plantilla de $profileCount perfiles lista; pulsa Aplicar');
+  }
+
+  Future<void> _openMusicForDay() async {
+    final segment = _day.segments.firstWhere(
+      (item) => item.kind == SegmentKind.mainPlaylist,
+      orElse: () => _day.segments.first,
+    );
+    await _openMusicForSegment(segment);
+  }
+
+  Future<void> _openMusicForSegment(ListeningSegment segment) async {
+    final url = ExportService.tidalUrlForSegment(segment);
     final opened = await launchUrl(url, mode: LaunchMode.externalApplication);
     if (!opened) {
-      _showSnack('No se pudo abrir el enlace');
+      _showSnack('No se pudo abrir Tidal');
+      return;
     }
+    _markEvent('Tidal abierto: ${segment.title}');
   }
 
   void _markEvent(String message) {
@@ -1336,7 +1566,7 @@ class _MetricStrip extends StatelessWidget {
               padding: const EdgeInsets.only(right: 8),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.surfaceCardColor(context),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: Theme.of(context).colorScheme.outlineVariant,
@@ -1400,7 +1630,7 @@ class _ProfileAssignmentTile extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surfaceCardColor(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
@@ -1480,7 +1710,7 @@ class _AccountCard extends StatelessWidget {
     };
 
     return Card(
-      color: Colors.white,
+      color: AppTheme.surfaceCardColor(context),
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: color.withValues(alpha: 0.14),
@@ -1584,19 +1814,21 @@ class _SegmentCard extends StatelessWidget {
   const _SegmentCard({
     required this.segment,
     required this.color,
+    required this.onOpenTidal,
     required this.onEdit,
     required this.onDelete,
   });
 
   final ListeningSegment segment;
   final Color color;
+  final VoidCallback onOpenTidal;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: Colors.white,
+      color: AppTheme.surfaceCardColor(context),
       child: ListTile(
         contentPadding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
         leading: CircleAvatar(
@@ -1616,6 +1848,11 @@ class _SegmentCard extends StatelessWidget {
         trailing: Wrap(
           spacing: 0,
           children: [
+            IconButton(
+              tooltip: 'Abrir en Tidal',
+              onPressed: onOpenTidal,
+              icon: const Icon(Icons.open_in_new),
+            ),
             IconButton(
               tooltip: 'Editar',
               onPressed: onEdit,
@@ -1661,7 +1898,7 @@ class _SliderPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surfaceCardColor(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
@@ -1682,6 +1919,70 @@ class _SliderPanel extends StatelessWidget {
             ),
             child,
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScheduleSlotCard extends StatelessWidget {
+  const _ScheduleSlotCard({required this.slot, required this.onOpen});
+
+  final ScheduleSlot slot;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = slot.isActiveNow
+        ? 'Ahora'
+        : 'En ${slot.minutesUntilStart} min';
+    return Card(
+      color: AppTheme.surfaceCardColor(context),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Color(slot.profile.colorValue).withValues(alpha: 0.14),
+          foregroundColor: Color(slot.profile.colorValue),
+          child: const Icon(Icons.schedule),
+        ),
+        title: Text('${slot.profile.name} - ${slot.segment.title}'),
+        subtitle: Text(
+          '$status | ${slot.accountLabel} | '
+          '${minutesToClock(slot.segment.startMinute)} - '
+          '${minutesToClock(slot.segment.endMinute)}',
+        ),
+        trailing: IconButton(
+          tooltip: 'Abrir en Tidal',
+          onPressed: onOpen,
+          icon: const Icon(Icons.open_in_new),
+        ),
+      ),
+    );
+  }
+}
+
+class _OperationalStepCard extends StatelessWidget {
+  const _OperationalStepCard({required this.step});
+
+  final OperationalStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppTheme.surfaceCardColor(context),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: step.completed
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
+          child: Text('${step.order}'),
+        ),
+        title: Text(step.title),
+        subtitle: Text(step.detail),
+        trailing: Icon(
+          step.completed ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: step.completed
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.outline,
         ),
       ),
     );

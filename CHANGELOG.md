@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0+3] - 2026-06-17
+
+### Added
+- **Panel operativo** — dashboard con slots activos y próximos según la hora
+- **Exportación CSV e ICS** — calendario y hojas de cálculo
+- **Checklist operativo** paso a paso en la pestaña Estado
+- **Atajos Tidal** — abre búsqueda del bloque actual (login manual)
+- **Plantillas rápidas** — presets de 10, 50 y 100 perfiles + importación JSON
+- **Tema oscuro** con persistencia
+- `docs/SCOPE_BOUNDARIES.md` — límites de alcance e integración legítima
+
+### Verified
+- `flutter analyze` — clean
+- 9/9 tests passing
+
+---
+
 ## [1.0.1+2] - 2026-05
 
 ### Added

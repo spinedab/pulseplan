@@ -71,11 +71,14 @@ The project is production-ready. All platforms are configured and the app builds
 
 The application is considered **production-operational** for its intended personal planning use case.
 
+**Novedades v1.1:** Panel operativo, export CSV/ICS, checklist paso a paso, tema oscuro, plantillas 10/50/100 perfiles, atajos Tidal por bloque.
+
 **Documentación oficial incluida:**
 - `PRODUCTION_CHECKLIST.md` — Revisión experta completa firmada
 - `RELEASE_NOTES.md`
 - `docs/USER_GUIDE.md`
 - `docs/ARCHITECTURE.md`
+- `docs/SCOPE_BOUNDARIES.md` — Alcance seguro y límites del proyecto
 - `scripts/build_release.sh` (helper de builds)
 
 ## Repositorio

@@ -64,7 +64,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PulsePlan'), findsOneWidget);
-    expect(find.text('Plan'), findsWidgets);
+    expect(find.text('Panel operativo'), findsOneWidget);
+
+    await tester.tap(find.text('Plan'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Mes 1'), findsOneWidget);
     expect(find.text('Mes 2'), findsOneWidget);
   });
