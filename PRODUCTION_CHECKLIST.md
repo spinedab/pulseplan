@@ -160,7 +160,7 @@
 
 **Date of last full review:** 2026-06-17
 
-**Git Status:** ✅ Repository pushed to https://github.com/spinedab/pulseplan (3 commits, production-ready)
+**Git Status:** ✅ Repository pushed to https://github.com/spinedab/pulseplan (tag `v1.0.1+2`, production-ready)
 
 **Next recommended review:** After any major feature addition or platform SDK upgrade.
 
